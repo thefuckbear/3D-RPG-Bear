@@ -9,15 +9,22 @@ public class PlayerController : MonoBehaviour
     private NavMeshAgent agent;
 
     private Animator anim;
+    private CharacterStats characterStats;
 
     private GameObject attackTarget;
 
+    private Collider coll;
+
     private float lastAttackTime;
+
+    private bool isDeath;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
         anim = GetComponent<Animator>();
+        characterStats = GetComponent<CharacterStats>();
+        characterStats.CurrentHealth = characterStats.MaxHealth;
     }
 
     void Start()
@@ -28,6 +35,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        isDeath = characterStats.CurrentHealth <= 0;
         SwitchAnimation();
 
         lastAttackTime -= Time.deltaTime;
@@ -36,6 +44,7 @@ public class PlayerController : MonoBehaviour
     private void SwitchAnimation()
     {
         anim.SetFloat("Speed", agent.velocity.sqrMagnitude);
+        anim.SetBool("Death", isDeath);
     }
 
     public void MoveToTarget(Vector3 target)
@@ -49,6 +58,7 @@ public class PlayerController : MonoBehaviour
     {
         if (target != null)
         {
+            StopAllCoroutines();
             attackTarget = target;
             StartCoroutine(MoveToAttackTarget());
         }
@@ -60,8 +70,8 @@ public class PlayerController : MonoBehaviour
 
         transform.LookAt(attackTarget.transform);
 
-        //TODO：修改攻击范围参数
-        while (Vector3.Distance(attackTarget.transform.position, transform.position) > 1)
+        //攻击范围由AttackData_SO中的attackRange决定
+        while (Vector3.Distance(attackTarget.transform.position, transform.position) > characterStats.attackData.attackRange)
         {
             agent.destination = attackTarget.transform.position;
             yield return null;
@@ -72,9 +82,24 @@ public class PlayerController : MonoBehaviour
         //Attack
         if (lastAttackTime < 0)
         {
+            characterStats.isCritical = UnityEngine.Random.value < characterStats.attackData.criticalChance;
+            anim.SetBool("Critical", characterStats.isCritical);
             anim.SetTrigger("Attack");
             //重置冷却时间
-            lastAttackTime = 0.5f;
+            lastAttackTime = characterStats.attackData.coolDown;
+        }
+    }
+
+    //Animation Event
+    void Hit()
+    {
+        if (attackTarget != null)
+        {
+            var targetStats = attackTarget.GetComponent<CharacterStats>();
+            if (targetStats != null && targetStats.CurrentHealth > 0)
+            {
+                targetStats.TakeDamage(characterStats, targetStats);
+            }
         }
     }
 }
