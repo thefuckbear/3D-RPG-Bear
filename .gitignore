@@ -80,6 +80,10 @@ mono_crash.*
 *.unitypackage
 *.unitypackage.meta
 *.app
+/build2/
+/build3/
+/build4/
+/3d_rpg_byUnity.zip
 
 # Crashlytics generated file
 crashlytics-build.properties
